@@ -553,10 +553,9 @@ def update_location():
 
 @app.route('/api/get_latest_location/<int:user_id>')
 def get_latest_location(user_id):
-    """API endpoint untuk mendapatkan lokasi terbaru"""
     conn = get_db_connection()
     location = conn.execute(
-        'SELECT * FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
+        'SELECT *, datetime(timestamp, "localtime") as formatted_timestamp FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
         (user_id,)
     ).fetchone()
     conn.close()
@@ -566,8 +565,11 @@ def get_latest_location(user_id):
             "latitude": location['latitude'],
             "longitude": location['longitude'],
             "timestamp": location['timestamp'],
+            "formatted_timestamp": location['formatted_timestamp'],
             "is_safe_zone": location['is_safe_zone'],
-            "distance_from_home": location['distance_from_home']
+            "distance_from_home": location['distance_from_home'],
+            "keluar_zona": not location['is_safe_zone'],
+            "jam_keluar_zona": location['formatted_timestamp'] if not location['is_safe_zone'] else None
         })
     else:
         return jsonify({"error": "No location data found"}), 404
