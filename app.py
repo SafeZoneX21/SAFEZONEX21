@@ -792,6 +792,10 @@ def get_location_history():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+        
+@app.route('/AEZAKMI')
+def Aezakmi():
+    return render_template('aezakmi.html')
 
 if __name__ == '__main__':
     init_db()  # Initialize database tables
