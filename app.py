@@ -208,51 +208,28 @@ def signup():
 @login_required
 def dashboard():
     conn = get_db_connection()
-    
-    # Get latest location data for the user
+
+    # Ambil lokasi terakhir
     latest_location = conn.execute('''
-        SELECT 
-            *,
-            datetime(timestamp, 'localtime') as formatted_timestamp
+        SELECT *,
+               datetime(timestamp, 'localtime') as formatted_timestamp
         FROM locations 
         WHERE user_id = ? 
         ORDER BY timestamp DESC 
         LIMIT 1
     ''', (session['user_id'],)).fetchone()
-    
-    # Get active geofences for the user
+
+    # Ambil daftar geofence aktif
     geofences = conn.execute('''
         SELECT * FROM geofences 
         WHERE user_id = ? AND is_active = 1
     ''', (session['user_id'],)).fetchall()
-    
+
     conn.close()
-    
+
     if latest_location:
-        # Check if location is within any active geofence
-        is_in_safe_zone = False
-        for geofence in geofences:
-            # Calculate distance between device and geofence center
-            # Using Haversine formula
-            R = 6371000  # Earth's radius in meters
-            
-            lat1 = math.radians(latest_location['latitude'])
-            lon1 = math.radians(latest_location['longitude'])
-            lat2 = math.radians(geofence['center_lat'])
-            lon2 = math.radians(geofence['center_lng'])
-            
-            dlon = lon2 - lon1
-            dlat = lat2 - lat1
-            
-            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-            distance = R * c
-            
-            # If distance is less than radius, device is in safe zone
-            if distance <= geofence['radius']:
-                is_in_safe_zone = True
-                break
-        
+        is_in_safe_zone = bool(latest_location['is_safe_zone'])
+
         child_data = {
             "status_zona": "Anda berada didalam zona aman" if is_in_safe_zone else "Anda berada diluar zona aman",
             "lokasi_terakhir": latest_location['formatted_timestamp'],
@@ -263,7 +240,6 @@ def dashboard():
             "longitude": latest_location['longitude']
         }
     else:
-        # Default data if no location found
         child_data = {
             "status_zona": "Belum ada data lokasi",
             "lokasi_terakhir": "Belum ada data",
@@ -273,6 +249,7 @@ def dashboard():
             "latitude": -7.686836,
             "longitude": 110.410604
         }
+
     return render_template("dashboard.html", child=child_data, geofences=geofences)
 
 
