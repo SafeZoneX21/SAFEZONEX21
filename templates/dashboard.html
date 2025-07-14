@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% set page = 'dashboard' %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<div class="stats" data-user-id="{{ session['user_id'] }}">
+    <div class="box" id="status-box">✔️ <br> Anda sedang <br> {{ child.status_zona }}</div>
+    <div class="box" id="location-box">📍 <br> Lokasi terakhir <br> {{ child.lokasi_terakhir }}</div>
+</div>
+
+<div class="map-container">
+    <div id="map"></div>
+    <div class="map-controls">
+        <button class="center-map" title="Pusatkan peta ke lokasi perangkat">
+            <i class="fas fa-crosshairs"></i> Pusatkan
+        </button>
+    </div>
+    <div class="zoom-controls">
+        <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-plus"></i></button>
+        <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-minus"></i></button>
+    </div>
+</div>
+
+<!-- ✅ Tambahan: Tampilkan daftar geofence -->
+<div class="geofence-list" style="margin-top: 20px;">
+    <h3>Daftar Geofence Aktif</h3>
+    <ul id="geofence-list-html"></ul>
+</div>
+
+<div class="footer">
+    <div class="alert" id="alert-box">
+        {% if child.keluar_zona %}
+            ⚠️ Anak keluar dari zona aman pukul {{ child.jam_keluar_zona }}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Styles tetap -->
+<style>
+    .map-container { position: relative; width: 100%; height: 70vh; margin: 20px 0; }
+    #map { width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .map-controls { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .zoom-controls { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
+    .zoom-btn { background: white; color: #333; border: none; width: 40px; height: 40px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 16px; }
+    .zoom-btn:hover { background: #f0f0f0; }
+    .center-map { background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .center-map:hover { background: #45a049; }
+    .update-flash { animation: flash 0.5s ease-in-out; }
+    @keyframes flash { 0% { background-color: transparent; } 50% { background-color: #fff3cd; } 100% { background-color: transparent; } }
+    .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+    .status-safe { background-color: #28a745; }
+    .status-danger { background-color: #dc3545; }
+</style>
+
+<!-- Script JS -->
+<script>
+let map, marker, geofenceMarkers = [], geofenceCircles = [];
+let currentLat = parseFloat("{{ child.latitude }}");
+let currentLng = parseFloat("{{ child.longitude }}");
+let userId = parseInt(document.querySelector('.stats').getAttribute('data-user-id'));
+
+function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([currentLat, currentLng], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let childIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+
+    marker = L.marker([currentLat, currentLng], {icon: childIcon}).addTo(map)
+        .bindPopup("Lokasi anak saat ini").openPopup();
+
+    loadGeofences();
+
+    document.querySelector(".center-map").addEventListener("click", () => {
+        map.setView([currentLat, currentLng], 15);
+        marker.openPopup();
+    });
+
+    document.querySelector('.zoom-in').addEventListener('click', () => map.zoomIn());
+    document.querySelector('.zoom-out').addEventListener('click', () => map.zoomOut());
+}
+
+function loadGeofences() {
+    fetch('/api/get_geofences')
+        .then(res => res.json())
+        .then(geofences => {
+            console.log("Geofences from API:", geofences); // ✅ Debug
+
+            geofenceMarkers.forEach(m => map.removeLayer(m));
+            geofenceCircles.forEach(c => map.removeLayer(c));
+            geofenceMarkers = []; geofenceCircles = [];
+
+            const list = document.getElementById('geofence-list-html');
+            if (list) list.innerHTML = '';
+
+            geofences.forEach(g => {
+                if (g.is_active) {
+                    const marker = L.marker([g.center_lat, g.center_lng]).bindPopup(g.name).addTo(map);
+                    geofenceMarkers.push(marker);
+
+                    const circle = L.circle([g.center_lat, g.center_lng], {
+                        color: '#0066cc', fillColor: '#3399ff', fillOpacity: 0.2, radius: g.radius
+                    }).bindPopup(g.name + '<br>Radius: ' + g.radius + ' meter').addTo(map);
+                    geofenceCircles.push(circle);
+
+                    if (list) {
+                        const item = document.createElement('li');
+                        item.textContent = `${g.name} - Lat: ${g.center_lat}, Lng: ${g.center_lng}, Radius: ${g.radius} m`;
+                        list.appendChild(item);
+                    }
+                }
+            });
+        })
+        .catch(err => console.error("Error loading geofences:", err));
+}
+
+function updateLocationData() {
+    fetch(`/api/get_latest_location/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) return;
+
+            const newLat = data.latitude, newLng = data.longitude;
+            const isSafeZone = data.is_safe_zone;
+            const timestamp = new Date(data.timestamp).toLocaleString('id-ID');
+
+            if (newLat !== currentLat || newLng !== currentLng) {
+                currentLat = newLat; currentLng = newLng;
+                marker.setLatLng([currentLat, currentLng]);
+                marker.getPopup().setContent("Lokasi anak saat ini");
+
+                document.querySelector('.stats').classList.add('update-flash');
+                setTimeout(() => document.querySelector('.stats').classList.remove('update-flash'), 500);
+            }
+
+            document.getElementById('status-box').innerHTML = `
+                <span class="status-indicator ${isSafeZone ? 'status-safe' : 'status-danger'}"></span><br> 
+                Anda sedang <br> ${isSafeZone ? 'Anda berada didalam zona aman' : 'Anda berada diluar zona aman'}`;
+
+            document.getElementById('location-box').innerHTML = `📍 <br> Lokasi terakhir <br> ${timestamp}`;
+
+            const alertBox = document.getElementById('alert-box');
+            if (!isSafeZone) {
+                alertBox.innerHTML = `⚠️ Anak keluar dari zona aman pukul ${timestamp}`;
+                alertBox.style.display = 'block';
+            } else {
+                alertBox.style.display = 'none';
+            }
+        })
+        .catch(err => console.error("Error updating location:", err));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    updateLocationData();
+    setInterval(updateLocationData, 5000);
+    setInterval(loadGeofences, 30000);
+});
+</script>
+{% endblock %}

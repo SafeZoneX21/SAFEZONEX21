@@ -1,0 +1,5 @@
+LIST PERTANYAAN
+1. modul gsm perlu konfigurasi APN, beda kartu sim akan beda APN. apakah ini menjadi kendala baru?
+2. belom ada notif saat anak diluar area geofence
+3. flask masih harus refresh
+4. masalah 3D, apakah modul ini harus pake antena? bisa ga kl antenanya 1 aja buat 2 modul

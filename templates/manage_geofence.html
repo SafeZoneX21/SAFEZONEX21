@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+{% block title %}Manage Geofences - Family GPS Tracker{% endblock %}
+
+{% block content %}
+<!-- eslint-disable -->
+<style>
+    .flash-messages {
+        margin-bottom: 20px;
+    }
+    .flash-message {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-bottom: 1px solid #ddd;
+        border-radius: 8px 8px 0 0;
+    }
+    .card-body {
+        padding: 20px;
+    }
+    .card-footer {
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #ddd;
+        border-radius: 0 0 8px 8px;
+    }
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: -10px;
+    }
+    .col-md-5 {
+        flex: 0 0 41.66667%;
+        padding: 10px;
+    }
+    .col-md-7 {
+        flex: 0 0 58.33333%;
+        padding: 10px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    .btn-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table th, .table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+    .text-end {
+        text-align: right;
+    }
+    .mb-3 {
+        margin-bottom: 15px;
+    }
+    .mb-4 {
+        margin-bottom: 20px;
+    }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<h2>Manage Geofences for {{ child.username if child else session.username }}</h2>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <!-- Form Tambah Geofence + Daftar Geofence -->
+    <div class="col-md-5">
+        <!-- Form Tambah Geofence -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Add New Geofence</h4>
+            </div>
+            <div class="card-body">
+                <form id="addGeofenceForm" method="POST" action="{{ url_for('manage_geofence') }}">
+                    <input type="hidden" name="action" value="add">
+                    <div class="form-group">
+                        <label for="geofence_name">Nama Geofence</label>
+                        <input type="text" class="form-control" id="geofence_name" name="geofence_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="latitude">Latitude</label>
+                        <input type="number" step="any" class="form-control" id="latitude" name="latitude" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="longitude">Longitude</label>
+                        <input type="number" step="any" class="form-control" id="longitude" name="longitude" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="radius">Radius (meter)</label>
+                        <input type="number" class="form-control" id="radius" name="radius" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Tambah Geofence</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Daftar Geofence -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Current Geofences</h4>
+            </div>
+            <div class="card-body">
+                <div id="geofence-list-container">
+                    {% if geofences %}
+                        <table class="table" id="geofence-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Coordinates</th>
+                                    <th>Radius</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="geofence-tbody">
+                                {% for geofence in geofences %}
+                                <tr>
+                                    <td>{{ geofence.name }}</td>
+                                    <td>{{ "%.6f"|format(geofence.center_lat) }}, {{ "%.6f"|format(geofence.center_lng) }}</td>
+                                    <td>{{ geofence.radius }} m</td>
+                                    <td>
+                                        {% set button_class = 'btn-success' if geofence.is_active else 'btn-secondary' %}
+                                        {% set icon_class = 'fa-eye' if geofence.is_active else 'fa-eye-slash' %}
+                                        <button class="toggle-geofence btn btn-sm {{ button_class }}" 
+                                                data-geofence-id="{{ geofence.id }}"
+                                                data-action="toggle">
+                                            <i class="fas {{ icon_class }}"></i>
+                                        </button>
+                                    </td>
+                                    <td>
+                                        {% set center_lat = geofence.center_lat %}
+                                        {% set center_lng = geofence.center_lng %}
+                                        {% set radius = geofence.radius %}
+                                        <button class="btn btn-info btn-sm center-map-btn" 
+                                                data-lat="{{ center_lat }}"
+                                                data-lng="{{ center_lng }}"
+                                                data-radius="{{ radius }}">
+                                            <i class="fas fa-crosshairs"></i>
+                                        </button>
+                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this geofence?')">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="geofence_id" value="{{ geofence.id }}">
+                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p id="no-geofence-message">No geofences have been set up yet. Create your first geofence using the form on the left.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map View -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h4>Map Preview</h4>
+            </div>
+            <div class="card-body">
+                <div id="map" style="height: 500px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tunggu sampai dokumen selesai dimuat
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inisialisasi peta
+        var map = L.map('map').setView([-7.686836, 110.410604], 13);
+        
+        // Tambahkan tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Ambil data geofence dari server
+        var geofences = JSON.parse('{{ geofences_json|safe }}');
+        console.log('Geofences data:', geofences); // Debug log
+        
+        // Simpan referensi ke marker dan circle untuk setiap geofence
+        var geofenceLayers = {};
+        
+        // Tambahkan marker dan circle untuk setiap geofence
+        geofences.forEach(function(geofence) {
+            console.log('Adding geofence:', geofence); // Debug log
+            
+            // Tambahkan marker
+            var marker = L.marker([geofence.center_lat, geofence.center_lng])
+                .bindPopup(geofence.name);
+            
+            // Tambahkan circle (geofence)
+            var circle = L.circle([geofence.center_lat, geofence.center_lng], {
+                color: geofence.is_active ? 'red' : 'gray',
+                fillColor: geofence.is_active ? '#f03' : '#999',
+                fillOpacity: 0.2,
+                radius: geofence.radius
+            }).bindPopup(geofence.name + '<br>Radius: ' + geofence.radius + ' meter');
+            
+            // Simpan referensi ke layer
+            geofenceLayers[geofence.id] = {
+                marker: marker,
+                circle: circle,
+                isActive: geofence.is_active
+            };
+            
+            // Tambahkan ke peta jika aktif
+            if (geofence.is_active) {
+                marker.addTo(map);
+                circle.addTo(map);
+            }
+        });
+
+        // Fungsi untuk memusatkan peta ke geofence tertentu
+        window.centerMap = function(lat, lng, radius) {
+            // Hitung zoom level berdasarkan radius
+            var zoomLevel = Math.floor(16 - Math.log2(radius / 100));
+            zoomLevel = Math.max(5, Math.min(18, zoomLevel)); // Batasi zoom level antara 5-18
+            
+            // Animasi zoom ke lokasi
+            map.flyTo([lat, lng], zoomLevel, {
+                duration: 1.5,
+                easeLinearity: 0.25
+            });
+        };
+
+        // Fungsi untuk toggle geofence
+        window.toggleGeofence = function(geofenceId) {
+            var layer = geofenceLayers[geofenceId];
+            if (layer) {
+                layer.isActive = !layer.isActive;
+                
+                // Update tampilan pada peta
+                if (layer.isActive) {
+                    layer.marker.addTo(map);
+                    layer.circle.addTo(map);
+                    layer.circle.setStyle({
+                        color: 'red',
+                        fillColor: '#f03'
+                    });
+                } else {
+                    map.removeLayer(layer.marker);
+                    map.removeLayer(layer.circle);
+                }
+                
+                // Update tampilan tombol
+                var button = document.querySelector(`[data-geofence-id="${geofenceId}"]`);
+                if (button) {
+                    button.classList.toggle('btn-success');
+                    button.classList.toggle('btn-secondary');
+                    var icon = button.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    }
+                }
+                
+                // Kirim status ke server
+                fetch('/api/toggle_geofence', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        geofence_id: geofenceId,
+                        is_active: layer.isActive
+                    })
+                });
+            }
+        };
+
+        // Tambahkan event listener untuk form
+        document.getElementById('addGeofenceForm').addEventListener('submit', function(e) {
+            var lat = parseFloat(document.getElementById('latitude').value);
+            var lng = parseFloat(document.getElementById('longitude').value);
+            var radius = parseFloat(document.getElementById('radius').value);
+            var name = document.getElementById('geofence_name').value;
+            
+            // Tambahkan marker dan circle baru
+            var marker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(name);
+            
+            var circle = L.circle([lat, lng], {
+                color: 'red',
+                fillColor: '#f03',
+                fillOpacity: 0.2,
+                radius: radius
+            }).addTo(map)
+            .bindPopup(name + '<br>Radius: ' + radius + ' meter');
+            
+            // Zoom ke lokasi baru
+            centerMap(lat, lng, radius);
+        });
+
+        // Event listener untuk tombol center map
+        document.querySelectorAll('.center-map-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var lat = parseFloat(this.dataset.lat);
+                var lng = parseFloat(this.dataset.lng);
+                var radius = parseFloat(this.dataset.radius);
+                centerMap(lat, lng, radius);
+            });
+        });
+
+        // Event listener untuk tombol toggle geofence
+        document.querySelectorAll('[data-action="toggle"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var geofenceId = this.dataset.geofenceId;
+                toggleGeofence(geofenceId);
+            });
+        });
+
+        // Function untuk update daftar geofence secara real-time
+        function updateGeofenceList() {
+            fetch('/api/get_geofences')
+                .then(response => response.json())
+                .then(geofences => {
+                    const container = document.getElementById('geofence-list-container');
+                    const tbody = document.getElementById('geofence-tbody');
+                    const noGeofenceMessage = document.getElementById('no-geofence-message');
+                    
+                    if (geofences.length === 0) {
+                        container.innerHTML = '<p id="no-geofence-message">No geofences have been set up yet. Create your first geofence using the form on the left.</p>';
+                        return;
+                    }
+
+                    if (noGeofenceMessage) {
+                        noGeofenceMessage.remove();
+                    }
+
+                    // Recreate table if it doesn't exist
+                    if (!tbody) {
+                        container.innerHTML = `
+                            <table class="table" id="geofence-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Coordinates</th>
+                                        <th>Radius</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="geofence-tbody"></tbody>
+                            </table>
+                        `;
+                    }
+
+                    const newTbody = document.getElementById('geofence-tbody');
+                    let html = '';
+                    
+                    geofences.forEach(geofence => {
+                        const buttonClass = geofence.is_active ? 'btn-success' : 'btn-secondary';
+                        const iconClass = geofence.is_active ? 'fa-eye' : 'fa-eye-slash';
+                        
+                        html += `
+                            <tr>
+                                <td>${geofence.name}</td>
+                                <td>${parseFloat(geofence.center_lat).toFixed(6)}, ${parseFloat(geofence.center_lng).toFixed(6)}</td>
+                                <td>${geofence.radius} m</td>
+                                <td>
+                                    <button class="toggle-geofence btn btn-sm ${buttonClass}" 
+                                            data-geofence-id="${geofence.id}"
+                                            data-action="toggle">
+                                        <i class="fas ${iconClass}"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-info btn-sm center-map-btn" 
+                                            data-lat="${geofence.center_lat}"
+                                            data-lng="${geofence.center_lng}"
+                                            data-radius="${geofence.radius}">
+                                        <i class="fas fa-crosshairs"></i>
+                                    </button>
+                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this geofence?')">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="geofence_id" value="${geofence.id}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    newTbody.innerHTML = html;
+
+                    // Re-attach event listeners
+                    document.querySelectorAll('[data-action="toggle"]').forEach(function(button) {
+                        button.addEventListener('click', function() {
+                            var geofenceId = this.dataset.geofenceId;
+                            toggleGeofence(geofenceId);
+                        });
+                    });
+
+                    document.querySelectorAll('.center-map-btn').forEach(function(button) {
+                        button.addEventListener('click', function() {
+                            var lat = parseFloat(this.dataset.lat);
+                            var lng = parseFloat(this.dataset.lng);
+                            var radius = parseFloat(this.dataset.radius);
+                            centerMap(lat, lng, radius);
+                        });
+                    });
+
+                    // Update map layers
+                    updateMapLayers(geofences);
+                })
+                .catch(error => console.error('Error updating geofence list:', error));
+        }
+
+        // Function untuk update layer peta
+        function updateMapLayers(geofences) {
+            // Clear existing layers
+            Object.values(geofenceLayers).forEach(layer => {
+                if (layer.marker) map.removeLayer(layer.marker);
+                if (layer.circle) map.removeLayer(layer.circle);
+            });
+            geofenceLayers = {};
+
+            // Add new layers
+            geofences.forEach(function(geofence) {
+                // Tambahkan marker
+                var marker = L.marker([geofence.center_lat, geofence.center_lng])
+                    .bindPopup(geofence.name);
+                
+                // Tambahkan circle (geofence)
+                var circle = L.circle([geofence.center_lat, geofence.center_lng], {
+                    color: geofence.is_active ? 'red' : 'gray',
+                    fillColor: geofence.is_active ? '#f03' : '#999',
+                    fillOpacity: 0.2,
+                    radius: geofence.radius
+                }).bindPopup(geofence.name + '<br>Radius: ' + geofence.radius + ' meter');
+                
+                // Simpan referensi ke layer
+                geofenceLayers[geofence.id] = {
+                    marker: marker,
+                    circle: circle,
+                    isActive: geofence.is_active
+                };
+                
+                // Tambahkan ke peta jika aktif
+                if (geofence.is_active) {
+                    marker.addTo(map);
+                    circle.addTo(map);
+                }
+            });
+        }
+
+        // Update geofence list every 20 seconds
+        setInterval(updateGeofenceList, 20000);
+
+        // Update immediately when page loads
+        updateGeofenceList();
+    });
+</script>
+{% endblock %}
+
+
+
+

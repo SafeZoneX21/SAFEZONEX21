@@ -1,0 +1,80 @@
+================================================
+catatan         24/052025     | versi 1.0
+================================================
+
+no. >> nama file                  >>> keterangan
+---------------------------------------------------
+1.  >> about.html                 >>> belum dikerjakan dan masih banyak yang mau di kasih masuk terkait informasi alat dan stylenya juga untuk logika codenya dah aman 
+2.  >> base.html                  >>> clear
+3.  >> child_relation.html        >>> masih banyak yang harus di perbaiki dari logika codenya dari html sampai pada python, untuk stylenya juga belum selesai 
+4.  >> dashboard.html             >>> hasil gambar geofance, untuk fitur yang ada di dashboard belum bisa sinkron  
+5.  >> index.html                 >>> clear
+6.  >> login.html                 >>> clear
+7.  >> logout.html                >>> clear
+8.  >> manage_geofance.html       >>> masih banyak yang harus di kembangkan tapi untuk logikanya dah aman semua datanya yg kita buat itu masuk disqlite dan kekurangan tambahkan style untuk keluarkan gambar map geofance
+9.  >> riwayat_lokasi.html        >>> tinggal perbaiki codenya dan juga style jadi nanti di sini seluruh data lokasi anak A itu masuk di riwayat lokasi 
+10. >> signup.html                >>> clear 
+11. >> app.py                     >>> masih butuh di kembangkan agar bisa sinkron yang di inginkan 
+
+
+================================================
+catatan         25/05/2025     | versi 1.3
+================================================
+
+no. >> nama file                  >>> keterangan
+---------------------------------------------------
+1.  >> about.html                 >>> adjustment style 
+2.  >> base.html                  >>> clear
+3.  >> child_relation.html        >>> harus cari logika untuk menghubungkan antara website dan device (gambaran umum seperti metode koneksi bluetooth)
+4.  >> dashboard.html             >>> sinkronisasi antara map preview pada laman geofences dan dashboard
+5.  >> index.html                 >>> clear
+6.  >> login.html                 >>> clear
+7.  >> logout.html                >>> clear
+8.  >> manage_geofance.html       >>> sinkronisasi antara map preview pada laman geofences dan dashboard
+9.  >> riwayat_lokasi.html        >>> sinkronisasi dengan data pada database
+10. >> signup.html                >>> clear 
+11. >> app.py                     >>> 
+
+
+================================================
+catatan         26/05/2025     | versi 1.5
+================================================
+
+no. >> nama file                  >>> keterangan
+---------------------------------------------------
+1.  >> about.html                 >>> adjustment style
+2.  >> base.html                  >>> clear
+3.  >> child_relation.html        >>> esp dicabut tapi keterangan masih terhubung
+4.  >> dashboard.html             >>> tambahin notif saat device berada didalam / diluar area, flask masih harus refresh, adjust biar tampilan mobile lebih enak diliat 
+5.  >> index.html                 >>> clear
+6.  >> login.html                 >>> clear
+7.  >> logout.html                >>> clear
+8.  >> manage_geofance.html       >>> kurang terkait notifkasi jika anak berada di luar ataupun di dalam bluezone
+9.  >> riwayat_lokasi.html        >>> bikin maximal 10 riwayat lokasi biar ga menuh2in database, naikin delay pengambilan data dari sql
+10. >> signup.html                >>> clear
+11. >> app.py                     >>> sementara clear. note  : integrasi kedua modul kita 
+12. >> GPS.ino                    >>> clear buanget
+13. >> gsm.ino                    >>> masih uji coba modul dengan menggunakan Arduino uno R3 
+14. >> safezone.ino               >>> bikin biar bisa make wifi doang atau gsm doang atau dua2nya, 
+15. >> esp32.ino                  >>> tidak dapat digunakan dan file ini hanya untuk menjadi template dan uji coba dan juga masih dapat di ubah 
+
+
+no. >> tambahan catatan atau keterangan  (PR)/(idea)
+----------------------------------------------------
+1.  >>  dashboard banyak yang harus di rapihin (dari fitur untuk melihat lokasi geofancing yang sudah di manage oleh orang tua )-
+        hingga batrai device belum ada 
+2.  >>  seluruh modul menggunakan tegangan 5 volt 
+3.  >>  
+
+
+
+
+
+
+
+
+
+===========
+alur sistem
+===========
+device mengambil data dengan output longitude dan latitude >>> data disimpan di database sqlite >>> website menampilkan berbagai informasi lokasi menggunakan data yang diambil dari database

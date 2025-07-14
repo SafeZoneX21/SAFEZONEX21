@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pelacak Lokasi Anak</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<!-- ✅ Simpan user_id dari session sebagai atribut -->
+<body data-user-id="{{ session['user_id'] }}">
+    <h2>Pelacak Lokasi dari HP</h2>
+    <p id="status">📡 Menunggu lokasi...</p>
+
+    <script>
+        const status = document.getElementById("status");
+        const userId = document.body.dataset.userId;
+
+        function sendToServer(lat, lng) {
+            fetch("/api/update_location", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lng,
+                    user_id: userId
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Lokasi berhasil dikirim:", data);
+                status.innerText = `✅ Lokasi terkirim: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            })
+            .catch(err => {
+                console.error("Gagal kirim:", err);
+                status.innerText = "❌ Gagal mengirim lokasi";
+            });
+        }
+
+        function startTracking() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    pos => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        sendToServer(lat, lng);
+                    },
+                    err => {
+                        console.error("GPS error:", err);
+                        status.innerText = "❌ Gagal mendapatkan lokasi";
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                status.innerText = "❌ GPS tidak didukung di browser ini";
+            }
+        }
+
+        // Jalankan pelacakan saat halaman terbuka
+        startTracking();
+    </script>
+</body>
+</html>

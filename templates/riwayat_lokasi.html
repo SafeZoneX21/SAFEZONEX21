@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Lokasi{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#F4F6F8] py-10 px-4">
+    <div class="max-w-4xl mx-auto bg-white p-10 rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-6 text-black">Riwayat Lokasi</h1>
+        
+        <div id="location-table-container">
+            {% if locations %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white" id="location-table">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latitude</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Longitude</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Zona</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200" id="location-tbody">
+                            {% for location in locations %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ location.timestamp }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ "%.6f"|format(location.latitude) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ "%.6f"|format(location.longitude) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {% if location.is_safe_zone %}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ location.status_zona }}
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            {{ location.status_zona }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8" id="no-data-message">
+                    <p class="text-gray-500">Belum ada data lokasi yang tersedia.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function untuk update tabel riwayat lokasi secara real-time
+    function updateLocationHistory() {
+        fetch('/api/get_location_history')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('location-table-container');
+                const tbody = document.getElementById('location-tbody');
+                const noDataMessage = document.getElementById('no-data-message');
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8" id="no-data-message"><p class="text-gray-500">Belum ada data lokasi yang tersedia.</p></div>';
+                    return;
+                }
+
+                if (noDataMessage) {
+                    noDataMessage.remove();
+                }
+
+                // Recreate table if it doesn't exist
+                if (!tbody) {
+                    container.innerHTML = `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white" id="location-table">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latitude</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Longitude</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Zona</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200" id="location-tbody"></tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                const newTbody = document.getElementById('location-tbody');
+                let html = '';
+                
+                data.forEach(location => {
+                    const statusClass = location.is_safe_zone ? 
+                        'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800' :
+                        'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800';
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${location.timestamp}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${parseFloat(location.latitude).toFixed(6)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${parseFloat(location.longitude).toFixed(6)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="${statusClass}">
+                                    ${location.status_zona}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                newTbody.innerHTML = html;
+            })
+            .catch(error => console.error('Error updating location history:', error));
+    }
+
+    // Update location history every 15 seconds
+    setInterval(updateLocationHistory, 15000);
+
+    // Update immediately when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateLocationHistory();
+    });
+</script>
+{% endblock %}

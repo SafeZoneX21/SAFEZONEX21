@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Tentang Aplikasi{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#F4F6F8] py-10 px-4">
+  <div class="max-w-4xl mx-auto bg-white p-10 rounded-lg shadow">
+    
+    <!-- Gambar Alat (PNG) -->
+    <div class="flex justify-center mb-8">
+      <img src="{{ url_for('static', filename='images/safetrack_alat.png') }}" alt="Alat SafeTrack" class="w-48 h-auto">
+    </div>
+
+    <!-- Judul dan Deskripsi -->
+    <h1 class="text-2xl font-bold text-center mb-4 text-black">Apa itu SafeZoneX?</h1>
+    <p class="text-center text-black mb-10">
+      SafeZoneX adalah sistem pelacakan anak berbasis GPS dan geofencing yang dirancang untuk
+      memberikan rasa aman kepada orang tua melalui pelacakan real-time dan notifikasi otomatis jika anak keluar dari zona aman.
+    </p>
+
+    <!-- Fitur -->
+    <h2 class="text-xl font-bold text-black mb-4">Fitur-Fitur SafeZoneX</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+      <div class="flex items-start space-x-4">
+        <img src="{{ url_for('static', filename='icons/location.png') }}" alt="Lokasi" class="w-6 h-6 mt-1">
+        <div>
+          <h3 class="font-bold text-black">Pelacakan Lokasi Real-Time</h3>
+          <p class="text-black">Memantau pergerakan anak secara langsung di peta.</p>
+        </div>
+      </div>
+      <div class="flex items-start space-x-4">
+        <img src="{{ url_for('static', filename='icons/geofence.png') }}" alt="Geofencing" class="w-6 h-6 mt-1">
+        <div>
+          <h3 class="font-bold text-black">Geofencing</h3>
+          <p class="text-black">Tentukan zona aman, dapatkan peringatan saat anak keluar dari zona tersebut.</p>
+        </div>
+      </div>
+      <div class="flex items-start space-x-4">
+        <img src="{{ url_for('static', filename='icons/sos.png') }}" alt="SOS" class="w-6 h-6 mt-1">
+        <div>
+          <h3 class="font-bold text-black">Tombol Darurat</h3>
+          <p class="text-black">Anak dapat menekan tombol untuk mengirim sinyal bantuan.</p>
+        </div>
+      </div>
+      <div class="flex items-start space-x-4">
+        <img src="{{ url_for('static', filename='icons/notification.png') }}" alt="Notifikasi" class="w-6 h-6 mt-1">
+        <div>
+          <h3 class="font-bold text-black">Notifikasi Web</h3>
+          <p class="text-black">Sistem mengirimkan notifikasi ke dashboard web secara langsung.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spesifikasi -->
+    <h2 class="text-xl font-bold text-black mb-4">Spesifikasi</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-[#F4F6F8] p-6 rounded-lg text-black">
+      <div>
+        <h4 class="font-semibold mb-1">Battery</h4>
+        <p>Type: lithium-polymer 1500 mAh</p>
+        <p>Battery Life: 6 jam penggunaan normal</p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-1">Physical Specification</h4>
+        <p>Dimension (WxHxD): 70 x 50 x 30 mm</p>
+        <p>Weight: Maks. 50 gram</p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-1">Compatibility</h4>
+        <p>Dapat diakses via Browser</p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-1">General Features</h4>
+        <p>Speaker: piezo buzzer</p>
+        <p>Buttons: 1 ea (Emergency Button)</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
