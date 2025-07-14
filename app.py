@@ -110,10 +110,12 @@ def check_geofence(latitude, longitude, user_id):
         a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         distance = R * c
-
         if distance <= geofence['radius']:
-            return True  # Dalam zona aman
-    return False  # Di luar zona aman
+            print(f"[DEBUG] Distance from geofence center: {distance:.2f} meter (radius: {geofence['radius']})")
+            return True
+    print("[DEBUG] Di luar semua geofence")
+    return False
+
 
 # --- Fungsi koneksi DB ---
 def get_db_connection():
