@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Your Device - Family GPS Tracker{% endblock %}
+
+{% block content %}
+<h2>Kelola Perangkat Anda</h2>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <!-- Form untuk Menghubungkan Perangkat -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Hubungkan Perangkat</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="device_id" class="form-label">ID Perangkat</label>
+                        <input type="text" class="form-control" id="device_id" name="device_id" required>
+                        <div class="form-text">Masukkan ID perangkat yang ingin dihubungkan.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Kirim Permintaan Koneksi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Petunjuk -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Petunjuk Penggunaan</h4>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Pastikan perangkat sudah terdaftar dan aktif.</li>
+                    <li>Dapatkan ID perangkat (biasanya tertera di perangkat).</li>
+                    <li>Masukkan ID perangkat ke dalam form di sebelah kiri.</li>
+                    <li>Klik "Kirim Permintaan Koneksi".</li>
+                    <li>Tunggu konfirmasi dari perangkat.</li>
+                    <li>Setelah terhubung, Anda dapat memantau lokasi perangkat.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Daftar Perangkat yang Terhubung -->
+<div class="card">
+    <div class="card-header">
+        <h4>Perangkat yang Terhubung</h4>
+    </div>
+    <div class="card-body">
+        {% if relations %}
+            <ul class="list-group">
+                {% for relation in relations %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>ID Perangkat:</strong> {{ relation.child_device_id }}
+                            <br>
+                            <small class="text-muted">Terhubung pada: {{ relation.created_at }}</small>
+                        </div>
+                        <div>
+                            {% if relation.status == 'pending' %}
+                                <button class="btn btn-warning btn-sm" disabled>Menunggu Konfirmasi</button>
+                                <form action="{{ url_for('delete_child_relation', relation_id=relation.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus permintaan koneksi ini?')">
+                                        <i class="fas fa-times"></i> Batalkan
+                                    </button>
+                                </form>
+                            {% elif relation.status == 'connected' %}
+                                <button class="btn btn-success btn-sm" disabled>Terhubung</button>
+                                <form action="{{ url_for('disconnect_child_relation', relation_id=relation.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Apakah Anda yakin ingin memutuskan koneksi dengan perangkat ini?')">
+                                        <i class="fas fa-unlink"></i> Putus Koneksi
+                                    </button>
+                                </form>
+                            {% elif relation.status == 'disconnected' %}
+                                <button class="btn btn-secondary btn-sm" disabled>Terputus</button>
+                                <form action="{{ url_for('delete_child_relation', relation_id=relation.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus perangkat ini dari daftar?')">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </form>
+                            {% else %}
+                                <button class="btn btn-danger btn-sm" disabled>Ditolak</button>
+                                <form action="{{ url_for('delete_child_relation', relation_id=relation.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus perangkat ini?')">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-center text-muted">Belum ada perangkat yang terhubung.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tombol untuk Menambahkan Perangkat Baru -->
+<div class="text-center mt-4">
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+        <i class="fas fa-plus"></i> Tambah Perangkat Baru
+    </button>
+</div>
+
+<!-- Modal untuk Menambahkan Perangkat -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1" aria-labelledby="addDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDeviceModalLabel">Tambah Perangkat Baru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDeviceForm" method="POST">
+                    <div class="mb-3">
+                        <label for="new_device_id" class="form-label">ID Perangkat</label>
+                        <input type="text" class="form-control" id="new_device_id" name="device_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="device_name" class="form-label">Nama Perangkat (Opsional)</label>
+                        <input type="text" class="form-control" id="device_name" name="device_name">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" form="addDeviceForm" class="btn btn-primary">Hubungkan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tambahkan CSS untuk styling -->
+<style>
+    .flash-messages {
+        margin-bottom: 20px;
+    }
+    .flash-message {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+    }
+    .flash-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    .list-group-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+    }
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 0.875rem;
+    }
+</style>
+
+<!-- Tambahkan Bootstrap JS dan CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Function untuk update daftar perangkat secara real-time
+    function updateDeviceList() {
+        fetch('/api/get_device_relations')
+            .then(response => response.json())
+            .then(data => {
+                const deviceList = document.querySelector('.list-group');
+                if (data.length === 0) {
+                    deviceList.innerHTML = '<p class="text-center text-muted">Belum ada perangkat yang terhubung.</p>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach(relation => {
+                    let statusButton = '';
+                    let actionButton = '';
+                    
+                    if (relation.status === 'pending') {
+                        statusButton = '<button class="btn btn-warning btn-sm" disabled>Menunggu Konfirmasi</button>';
+                        actionButton = `
+                            <form action="/child/delete/${relation.id}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus permintaan koneksi ini?')">
+                                    <i class="fas fa-times"></i> Batalkan
+                                </button>
+                            </form>
+                        `;
+                    } else if (relation.status === 'connected') {
+                        statusButton = '<button class="btn btn-success btn-sm" disabled>Terhubung</button>';
+                        actionButton = `
+                            <form action="/child/disconnect/${relation.id}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Apakah Anda yakin ingin memutuskan koneksi dengan perangkat ini?')">
+                                    <i class="fas fa-unlink"></i> Putus Koneksi
+                                </button>
+                            </form>
+                        `;
+                    } else if (relation.status === 'disconnected') {
+                        statusButton = '<button class="btn btn-secondary btn-sm" disabled>Terputus</button>';
+                        actionButton = `
+                            <form action="/child/delete/${relation.id}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus perangkat ini dari daftar?')">
+                                    <i class="fas fa-trash"></i> Hapus
+                                </button>
+                            </form>
+                        `;
+                    } else {
+                        statusButton = '<button class="btn btn-danger btn-sm" disabled>Ditolak</button>';
+                        actionButton = `
+                            <form action="/child/delete/${relation.id}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus perangkat ini?')">
+                                    <i class="fas fa-trash"></i> Hapus
+                                </button>
+                            </form>
+                        `;
+                    }
+
+                    html += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>ID Perangkat:</strong> ${relation.child_device_id}
+                                <br>
+                                <small class="text-muted">Terhubung pada: ${relation.created_at}</small>
+                            </div>
+                            <div>
+                                ${statusButton}
+                                ${actionButton}
+                            </div>
+                        </li>
+                    `;
+                });
+                deviceList.innerHTML = html;
+            })
+            .catch(error => console.error('Error updating device list:', error));
+    }
+
+    // Update device list every 10 seconds
+    setInterval(updateDeviceList, 10000);
+
+    // Update immediately when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDeviceList();
+    });
+</script>
+{% endblock %}
