@@ -88,42 +88,6 @@ def get_db_connection():
     conn = sqlite3.connect('kidtracker.db')
     conn.row_factory = sqlite3.Row
     return conn
-# --- Tambahan: Fungsi pengecekan geofence ---
-def check_geofence(latitude, longitude, user_id):
-    print(f"[DEBUG] Mengecek geofence untuk user_id={user_id} lat={latitude}, lng={longitude}")
-    conn = get_db_connection()
-    geofences = conn.execute(
-        'SELECT * FROM geofences WHERE user_id = ? AND is_active = 1',
-        (user_id,)
-    ).fetchall()
-    conn.close()
-
-    R = 6371000  # Radius bumi dalam meter
-    lat1 = math.radians(latitude)
-    lon1 = math.radians(longitude)
-
-    for geofence in geofences:
-        lat2 = math.radians(geofence['center_lat'])
-        lon2 = math.radians(geofence['center_lng'])
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-
-        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        distance = R * c
-        if distance <= geofence['radius']:
-            print(f"[DEBUG] Distance from geofence center: {distance:.2f} meter (radius: {geofence['radius']})")
-            return True
-    print("[DEBUG] Di luar semua geofence")
-    return False
-
-
-# --- Fungsi koneksi DB ---
-def get_db_connection():
-    conn = sqlite3.connect('kidtracker.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
 
 # Routes
 @app.route('/')
@@ -207,40 +171,57 @@ def signup():
     
     return render_template("signup.html")
 
-@app.route('/dashboard')
 @login_required
 def dashboard():
     conn = get_db_connection()
 
-    # Ambil lokasi terakhir
     latest_location = conn.execute('''
-        SELECT *,
-               datetime(timestamp, 'localtime') as formatted_timestamp
-        FROM locations 
-        WHERE user_id = ? 
-        ORDER BY timestamp DESC 
+        SELECT *, datetime(timestamp, 'localtime') as formatted_timestamp
+        FROM locations
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
         LIMIT 1
     ''', (session['user_id'],)).fetchone()
 
-    # Ambil daftar geofence aktif
     geofences = conn.execute('''
-        SELECT * FROM geofences 
+        SELECT * FROM geofences
         WHERE user_id = ? AND is_active = 1
     ''', (session['user_id'],)).fetchall()
 
     conn.close()
 
+    is_in_safe_zone = False
+    zona_terdekat = None
+
     if latest_location:
-        is_in_safe_zone = bool(latest_location['is_safe_zone'])
+        for geofence in geofences:
+            R = 6371000
+            lat1 = math.radians(latest_location['latitude'])
+            lon1 = math.radians(latest_location['longitude'])
+            lat2 = math.radians(geofence['center_lat'])
+            lon2 = math.radians(geofence['center_lng'])
+
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+
+            a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            distance = R * c
+
+            if distance <= geofence['radius']:
+                is_in_safe_zone = True
+                zona_terdekat = geofence['name']
+                break
 
         child_data = {
-            "status_zona": "Anda berada didalam zona aman" if is_in_safe_zone else "Anda berada diluar zona aman",
+            "status_zona": "didalam zona aman" if is_in_safe_zone else "diluar zona aman",
             "lokasi_terakhir": latest_location['formatted_timestamp'],
             "live_tracking": True,
             "keluar_zona": not is_in_safe_zone,
             "jam_keluar_zona": latest_location['formatted_timestamp'] if not is_in_safe_zone else None,
             "latitude": latest_location['latitude'],
-            "longitude": latest_location['longitude']
+            "longitude": latest_location['longitude'],
+            "zona_terdekat": zona_terdekat
         }
     else:
         child_data = {
@@ -250,11 +231,11 @@ def dashboard():
             "keluar_zona": False,
             "jam_keluar_zona": None,
             "latitude": -7.686836,
-            "longitude": 110.410604
+            "longitude": 110.410604,
+            "zona_terdekat": None
         }
 
-    return render_template("dashboard.html", child=child_data, geofences=geofences)
-
+    return render_template("dashboard.html", child=child_data)
 
 @app.route('/child', methods=['GET', 'POST'])
 @login_required
@@ -498,33 +479,36 @@ def logout():
 # API Routes for location updates
 @app.route('/api/update_location', methods=['POST'])
 def update_location():
+    """API endpoint untuk update lokasi via cURL"""
     try:
         data = request.get_json()
+        
+        # Validasi data yang diperlukan
         required_fields = ['user_id', 'latitude', 'longitude']
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Field '{field}' is required"}), 400
-
-        # Pengecekan zona aman dari sisi server
-        is_safe_zone = check_geofence(data['latitude'], data['longitude'], data['user_id'])
-        distance_from_home = data.get('distance_from_home', 0)  # Optional
-
+        
+        # Optional fields
+        is_safe_zone = data.get('is_safe_zone', True)
+        distance_from_home = data.get('distance_from_home', 0)
+        
         conn = get_db_connection()
-
-        # Validasi user
+        
+        # Verify user exists
         user = conn.execute('SELECT id FROM users WHERE id = ?', (data['user_id'],)).fetchone()
         if not user:
             conn.close()
             return jsonify({"error": "User not found"}), 404
-
-        # Simpan lokasi
+        
+        # Insert location data
         conn.execute(
             '''INSERT INTO locations (user_id, latitude, longitude, is_safe_zone, distance_from_home) 
                VALUES (?, ?, ?, ?, ?)''',
             (data['user_id'], data['latitude'], data['longitude'], is_safe_zone, distance_from_home)
         )
-
-        # Batasi riwayat
+        
+        # Hapus data lokasi yang lebih dari 50 data terakhir
         conn.execute('''
             DELETE FROM locations 
             WHERE user_id = ? 
@@ -535,28 +519,25 @@ def update_location():
                 LIMIT 50
             )
         ''', (data['user_id'], data['user_id']))
-
+        
         conn.commit()
         conn.close()
-
-        # Logging atau debug
-        print(f"[INFO] User {data['user_id']} berada di zona aman: {is_safe_zone}")
-
+        
         return jsonify({
-            "status": "success",
+            "status": "success", 
             "message": "Location updated successfully",
-            "timestamp": datetime.now().isoformat(),
-            "is_safe_zone": is_safe_zone
+            "timestamp": datetime.now().isoformat()
         }), 200
-
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/get_latest_location/<int:user_id>')
 def get_latest_location(user_id):
+    """API endpoint untuk mendapatkan lokasi terbaru"""
     conn = get_db_connection()
     location = conn.execute(
-        'SELECT *, datetime(timestamp, "localtime") as formatted_timestamp FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
+        'SELECT * FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
         (user_id,)
     ).fetchone()
     conn.close()
@@ -566,11 +547,8 @@ def get_latest_location(user_id):
             "latitude": location['latitude'],
             "longitude": location['longitude'],
             "timestamp": location['timestamp'],
-            "formatted_timestamp": location['formatted_timestamp'],
             "is_safe_zone": location['is_safe_zone'],
-            "distance_from_home": location['distance_from_home'],
-            "keluar_zona": not location['is_safe_zone'],
-            "jam_keluar_zona": location['formatted_timestamp'] if not location['is_safe_zone'] else None
+            "distance_from_home": location['distance_from_home']
         })
     else:
         return jsonify({"error": "No location data found"}), 404
@@ -647,15 +625,18 @@ def receive_location():
 
     user_id = relation['parent_id']
 
-    # Hitung status zona aman
-    is_safe_zone = check_geofence(latitude, longitude, user_id)
+    # Hitung jarak dari rumah (menggunakan lokasi terakhir sebagai referensi)
+    latest_location = conn.execute(
+        'SELECT * FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
+        (user_id,)
+    ).fetchone()
 
     # Simpan data lokasi
     conn.execute(
-        'INSERT INTO locations (user_id, latitude, longitude, is_safe_zone) VALUES (?, ?, ?, ?)',
-        (user_id, latitude, longitude, is_safe_zone)
+        'INSERT INTO locations (user_id, latitude, longitude) VALUES (?, ?, ?)',
+        (user_id, latitude, longitude)
     )
-
+    
     # Hapus data lokasi yang lebih dari 50 data terakhir
     conn.execute('''
         DELETE FROM locations 
@@ -667,15 +648,11 @@ def receive_location():
             LIMIT 50
         )
     ''', (user_id, user_id))
-
+    
     conn.commit()
     conn.close()
 
-    return jsonify({
-        'status': 'success',
-        'message': 'Lokasi diterima',
-        'is_safe_zone': is_safe_zone
-    })
+    return jsonify({'status': 'success', 'message': 'Lokasi diterima'})
 
 @app.route('/api/confirm_connection', methods=['POST'])
 def confirm_connection():
