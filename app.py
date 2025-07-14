@@ -170,7 +170,7 @@ def signup():
             conn.close()
     
     return render_template("signup.html")
-
+@app.route('/dashboard')
 @login_required
 def dashboard():
     conn = get_db_connection()
