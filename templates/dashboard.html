@@ -36,6 +36,23 @@
     </div>
 </div>
 
+{% if not child.live_tracking %}
+<div class="alert alert-info">
+    Belum ada data lokasi terkini dari perangkat anak.
+</div>
+{% endif %}
+
+<div class="geofence-list">
+    <h3>Zona Aman Aktif</h3>
+    <ul id="geofence-names"></ul>
+</div>
+
+{% if child.zona_terdekat %}
+<div class="alert alert-success">
+    🔵 Anak saat ini berada di zona: <strong>{{ child.zona_terdekat }}</strong>
+</div>
+{% endif %}
+
 <!-- ✅ Styling -->
 <style>
     .map-container { position: relative; width: 100%; height: 70vh; margin: 20px 0; }
