@@ -155,15 +155,10 @@ function updateLocationData() {
 
             const alertBox = document.getElementById('alert-box');
             if (!isSafeZone) {
-                alertBox.innerHTML = `⚠️ Anak keluar dari zona aman pukul ${timestamp}`;
+                alertBox.innerHTML = `⚠️ Anak keluar dari zona aman pukul ${data.jam_keluar_zona || timestamp}`;
                 alertBox.style.display = 'block';
-                alertBox.dataset.lastShown = Date.now();
             } else {
-                const lastShown = parseInt(alertBox.dataset.lastShown || 0);
-                const now = Date.now();
-                if (now - lastShown > 10000) {  // Tahan 10 detik
-                    alertBox.style.display = 'none';
-                }
+                alertBox.style.display = 'none';
             }
         })
         .catch(err => console.error("Error updating location:", err));
