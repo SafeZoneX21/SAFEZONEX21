@@ -90,6 +90,7 @@ def get_db_connection():
     return conn
 # --- Tambahan: Fungsi pengecekan geofence ---
 def check_geofence(latitude, longitude, user_id):
+    print(f"[DEBUG] Mengecek geofence untuk user_id={user_id} lat={latitude}, lng={longitude}")
     conn = get_db_connection()
     geofences = conn.execute(
         'SELECT * FROM geofences WHERE user_id = ? AND is_active = 1',
