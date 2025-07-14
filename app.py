@@ -111,7 +111,7 @@ def check_geofence(latitude, longitude, user_id):
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         distance = R * c
 
-        print(f\"[DEBUG] Cek Geofence - Jarak: {distance:.2f} m | Radius: {geofence['radius']} m\")
+        print(f"[DEBUG] Cek Geofence - Jarak: {distance:.2f} m | Radius: {geofence['radius']} m")
 
         if distance <= geofence['radius']:
             return True
