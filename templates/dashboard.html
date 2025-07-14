@@ -36,7 +36,7 @@
     </div>
 </div>
 
-<!-- Styles tetap -->
+<!-- ✅ Styling -->
 <style>
     .map-container { position: relative; width: 100%; height: 70vh; margin: 20px 0; }
     #map { width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -51,9 +51,18 @@
     .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
     .status-safe { background-color: #28a745; }
     .status-danger { background-color: #dc3545; }
+    .alert {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+        font-weight: bold;
+        display: none;
+    }
 </style>
 
-<!-- Script JS -->
+<!-- ✅ Script -->
 <script>
 let map, marker, geofenceMarkers = [], geofenceCircles = [];
 let currentLat = parseFloat("{{ child.latitude }}");
@@ -91,8 +100,6 @@ function loadGeofences() {
     fetch('/api/get_geofences')
         .then(res => res.json())
         .then(geofences => {
-            console.log("Geofences from API:", geofences); // ✅ Debug
-
             geofenceMarkers.forEach(m => map.removeLayer(m));
             geofenceCircles.forEach(c => map.removeLayer(c));
             geofenceMarkers = []; geofenceCircles = [];
@@ -150,8 +157,13 @@ function updateLocationData() {
             if (!isSafeZone) {
                 alertBox.innerHTML = `⚠️ Anak keluar dari zona aman pukul ${timestamp}`;
                 alertBox.style.display = 'block';
+                alertBox.dataset.lastShown = Date.now();
             } else {
-                alertBox.style.display = 'none';
+                const lastShown = parseInt(alertBox.dataset.lastShown || 0);
+                const now = Date.now();
+                if (now - lastShown > 10000) {  // Tahan 10 detik
+                    alertBox.style.display = 'none';
+                }
             }
         })
         .catch(err => console.error("Error updating location:", err));
