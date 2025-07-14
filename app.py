@@ -665,18 +665,15 @@ def receive_location():
 
     user_id = relation['parent_id']
 
-    # Hitung jarak dari rumah (menggunakan lokasi terakhir sebagai referensi)
-    latest_location = conn.execute(
-        'SELECT * FROM locations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
-        (user_id,)
-    ).fetchone()
+    # Hitung status zona aman
+    is_safe_zone = check_geofence(latitude, longitude, user_id)
 
     # Simpan data lokasi
     conn.execute(
-        'INSERT INTO locations (user_id, latitude, longitude) VALUES (?, ?, ?)',
-        (user_id, latitude, longitude)
+        'INSERT INTO locations (user_id, latitude, longitude, is_safe_zone) VALUES (?, ?, ?, ?)',
+        (user_id, latitude, longitude, is_safe_zone)
     )
-    
+
     # Hapus data lokasi yang lebih dari 50 data terakhir
     conn.execute('''
         DELETE FROM locations 
@@ -688,11 +685,15 @@ def receive_location():
             LIMIT 50
         )
     ''', (user_id, user_id))
-    
+
     conn.commit()
     conn.close()
 
-    return jsonify({'status': 'success', 'message': 'Lokasi diterima'})
+    return jsonify({
+        'status': 'success',
+        'message': 'Lokasi diterima',
+        'is_safe_zone': is_safe_zone
+    })
 
 @app.route('/api/confirm_connection', methods=['POST'])
 def confirm_connection():
