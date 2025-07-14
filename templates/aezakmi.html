@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Profil Saya</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #f2f2f2;
+    }
+    .container {
+    text-align: center;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+
+    img {
+    max-width: 250px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Halo, Ini Saya</h1>
+        <img src="{{ url_for('static', filename='images/foto-kamu.jpg') }}" alt="Foto Saya">
+        <p>Selamat datang di website pribadi saya!</p>
+    </div>
+</body>
+</html>
