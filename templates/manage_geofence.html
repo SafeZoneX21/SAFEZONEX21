@@ -146,11 +146,11 @@
                     </div>
                     <div class="form-group">
                         <label for="latitude">Latitude</label>
-                        <input type="number" step="any" class="form-control" id="latitude" name="latitude" required>
+                        <input type="number" step="any" class="form-control" id="latitude" name="latitude" required readonly>
                     </div>
                     <div class="form-group">
                         <label for="longitude">Longitude</label>
-                        <input type="number" step="any" class="form-control" id="longitude" name="longitude" required>
+                        <input type="number" step="any" class="form-control" id="longitude" name="longitude" required readonly>
                     </div>
                     <div class="form-group">
                         <label for="radius">Radius (meter)</label>
@@ -245,6 +245,30 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
+
+        // Marker untuk geofence baru
+        var newGeofenceMarker = null;
+
+        // Event klik pada peta untuk memilih lokasi geofence
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+            // Update field form
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+            // Hapus marker sebelumnya jika ada
+            if (newGeofenceMarker) {
+                map.removeLayer(newGeofenceMarker);
+            }
+            // Tambahkan marker baru
+            newGeofenceMarker = L.marker([lat, lng], {draggable: true}).addTo(map);
+            // Update field jika marker digeser
+            newGeofenceMarker.on('dragend', function(ev) {
+                var pos = ev.target.getLatLng();
+                document.getElementById('latitude').value = pos.lat;
+                document.getElementById('longitude').value = pos.lng;
+            });
+        });
 
         // Ambil data geofence dari server
         var geofences = JSON.parse('{{ geofences_json|safe }}');
@@ -526,7 +550,3 @@
     });
 </script>
 {% endblock %}
-
-
-
-
